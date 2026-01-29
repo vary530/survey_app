@@ -12,7 +12,7 @@ from PIL import Image, ImageOps # 新增影像處理套件
 # --- 1. 頁面設定 ---
 st.set_page_config(
     page_title="永義物調整合", 
-    page_icon="🏠", # 加上一個小圖示讓網頁標籤更好看
+    page_icon="🏠", 
     layout="centered",
     initial_sidebar_state="collapsed"
 )
@@ -33,7 +33,7 @@ OTHER_ORDER = [
     "房地合一", "面道路", "貸款設定", "車位價格", "房屋單價"
 ]
 
-# --- 2. 視覺設計 (修正版：手機優化、移除連結、移除提示、修復版面) ---
+# --- 2. 視覺設計 (修正版：強力隱藏介面雜訊) ---
 def inject_custom_styles():
     st.markdown("""
         <style>
@@ -44,13 +44,37 @@ def inject_custom_styles():
                 box-sizing: border-box;
             }
 
-            /* 移除 Streamlit 標題旁的連結按鈕 */
-            .stApp h1 a {
+            /* --- 強力隱藏 Streamlit 預設介面 --- */
+            
+            /* 1. 隱藏上方 Header */
+            header[data-testid="stHeader"] {
+                display: none !important;
+                visibility: hidden !important;
+            }
+            .stApp > header {
                 display: none !important;
             }
 
-            /* 隱藏輸入框下方的 "Press Enter to apply" 提示文字 */
-            [data-testid="InputInstructions"] {
+            /* 2. 隱藏下方 Footer */
+            footer {
+                display: none !important;
+                visibility: hidden !important;
+            }
+            [data-testid="stFooter"] {
+                display: none !important;
+            }
+
+            /* 3. 隱藏開發者按鈕 */
+            [data-testid="stToolbar"] {
+                display: none !important;
+            }
+            .stDeployButton {
+                display: none !important;
+            }
+            div[data-testid="stDecoration"] {
+                display: none !important;
+            }
+            [data-testid="stStatusWidget"] {
                 display: none !important;
             }
 
@@ -62,16 +86,17 @@ def inject_custom_styles():
                 background-size: cover;
                 font-family: 'Inter', 'Noto Sans TC', sans-serif;
                 color: #d1d5db;
+                margin-top: -60px; /* 移除上方預設留白 */
             }
 
             /* --- 表單區塊樣式 --- */
             [data-testid="stForm"] {
                 background: rgba(30, 30, 30, 0.4);
                 border: 1px solid rgba(197, 160, 101, 0.2);
-                border-radius: 16px; /* 更圓潤 */
+                border-radius: 16px; 
                 padding: 20px 24px;
                 backdrop-filter: blur(12px);
-                margin-top: 20px;
+                margin-top: 30px;
                 width: 100%;
                 box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
             }
@@ -97,11 +122,10 @@ def inject_custom_styles():
                 color: #e5e5e5 !important;
                 border: 1px solid #333 !important;
                 border-radius: 6px;
-                font-size: 16px; /* 防止 iOS 自動縮放 */
+                font-size: 16px;
                 padding: 8px 12px;
             }
             
-            /* Placeholder 顏色優化 */
             ::placeholder {
                 color: #555 !important;
                 opacity: 1;
@@ -145,7 +169,7 @@ def inject_custom_styles():
                 transform: translateY(1px);
             }
 
-            /* 標題與文字 (強制置中) */
+            /* 標題與文字 */
             h1 {
                 text-align: center !important; 
                 color: #e5e5e5; 
@@ -158,6 +182,7 @@ def inject_custom_styles():
                 justify-content: center;
                 align-items: center;
                 text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+                padding-top: 20px;
             }
             .subtitle {
                 text-align: center !important;
@@ -204,13 +229,13 @@ def inject_custom_styles():
             }
 
             .block-container { 
-                padding-top: 2rem; 
+                padding-top: 1rem;
                 padding-left: 1rem;
                 padding-right: 1rem;
                 max-width: 600px; 
                 margin: 0 auto;
             }
-            #MainMenu, header, footer {visibility: hidden;}
+            
             ::-webkit-scrollbar { display: none; }
             
         </style>
@@ -260,7 +285,6 @@ def safe_float_convert(value):
     """安全轉換字串為浮點數，失敗回傳 0.0"""
     try:
         if not value: return 0.0
-        # 移除可能出現的 "萬" 或其他非數字字符 (保留小數點)
         clean_val = re.sub(r'[^\d.]', '', str(value))
         return float(clean_val)
     except:
@@ -273,12 +297,10 @@ def crop_image_to_ratio(image, target_ratio_w=27, target_ratio_h=16):
     current_aspect = original_w / original_h
 
     if current_aspect > target_aspect:
-        # 圖片過寬，剪裁寬度
         new_w = int(original_h * target_aspect)
         offset = (original_w - new_w) // 2
         box = (offset, 0, offset + new_w, original_h)
     else:
-        # 圖片過高，剪裁高度
         new_h = int(original_w / target_aspect)
         offset = (original_h - new_h) // 2
         box = (0, offset, original_w, offset + new_h)
@@ -286,7 +308,7 @@ def crop_image_to_ratio(image, target_ratio_w=27, target_ratio_h=16):
     return image.crop(box)
 
 def calculate_cell_pixels(ws, coord):
-    """計算 Excel 儲存格 (含合併) 的像素大小，用於自動填滿圖片"""
+    """計算 Excel 儲存格 (含合併) 的像素大小"""
     target_range = None
     for merged_range in ws.merged_cells.ranges:
         if coord in merged_range:
@@ -299,26 +321,19 @@ def calculate_cell_pixels(ws, coord):
         c = ws[coord]
         min_col, min_row, max_col, max_row = c.column, c.row, c.column, c.row
 
-    # 計算總寬度
     total_width = 0
     for col_idx in range(min_col, max_col + 1):
         col_letter = get_column_letter(col_idx)
-        # OpenPyXL 預設欄寬單位轉換像素通常為 7~8 左右
-        # 移除額外的緩衝像素，避免超出 J 欄
         cw = ws.column_dimensions[col_letter].width
         if cw is None: cw = 9 
         total_width += cw * 7.7 
         
-    # 計算總高度
     total_height = 0
     for row_idx in range(min_row, max_row + 1):
-        # OpenPyXL 預設列高單位(points)轉換像素約為 1.33 倍
-        # 移除額外的緩衝像素，避免超出 22 列
         rh = ws.row_dimensions[row_idx].height
         if rh is None: rh = 15
         total_height += rh * 1.34 
         
-    # 移除了 +4 緩衝，確保不溢出
     return total_width, total_height
 
 def parse_transcript_pdf(pdf_file):
@@ -401,7 +416,6 @@ def main():
         st.error(f"系統錯誤：讀取模板失敗 {e}")
         return
 
-    # 預先掃描
     label_to_coord = {}
     scanned_items = []
     for row in target_sheet.iter_rows():
@@ -411,7 +425,6 @@ def main():
                 label_name = ""
                 content_part = ""
                 
-                # Regex 修復
                 match_star = re.search(r'\*(.*?)\*(.*)', raw_txt)
                 if match_star:
                     label_name = match_star.group(1).strip()
@@ -443,11 +456,9 @@ def main():
                 label_to_coord[label_name] = cell.coordinate
                 scanned_items.append(item_data)
 
-    # --- 介面標題 ---
     st.markdown("<h1>永義物調整合</h1>", unsafe_allow_html=True)
     st.markdown("<div class='subtitle'>YUNGYI PROPERTY INTEGRATION</div>", unsafe_allow_html=True)
 
-    # --- 智慧匯入中心 ---
     st.markdown("<div style='color:#c5a065; font-size:15px; font-weight:bold; margin-bottom:10px; margin-top:20px;'>智慧匯入中心</div>", unsafe_allow_html=True)
     
     uploaded_pdf = st.file_uploader("點此上傳建物謄本 (PDF)", type=['pdf'])
@@ -490,7 +501,6 @@ def main():
                 if count > 0:
                     st.success("資料已匯入")
 
-    # --- 填寫表單區 ---
     user_inputs = {} 
     uploaded_map_image = None
     scanned_dict = {item["label"]: item for item in scanned_items}
@@ -498,7 +508,6 @@ def main():
     with st.form("survey_form"):
         st.markdown("<div style='color:#c5a065; font-size:15px; font-weight:bold; margin-bottom:15px;'>不動產基本資料</div>", unsafe_allow_html=True)
 
-        # 渲染主順序欄位
         for label in MAIN_ORDER:
             found_key = label if label in scanned_dict else None
             if not found_key:
@@ -529,15 +538,13 @@ def main():
                 elif item["type"] == "image_upload":
                     st.markdown(f"<div style='margin-top:15px; margin-bottom:5px; font-size:14px; color:#c5a065;'>{found_key}</div>", unsafe_allow_html=True)
                     uploaded_map_image = st.file_uploader("", type=['jpg', 'png', 'jpeg'], key=coord, label_visibility="collapsed")
-                    # 自動填滿模式，不顯示尺寸調整欄位
                     st.markdown("<div style='font-size:12px; color:#666; margin-top:-5px;'>* 圖片將自動「置中剪裁 (27:16)」並拉伸填滿 Excel 儲存格</div>", unsafe_allow_html=True)
                     user_inputs[coord] = ""
                 else:
-                    # 加入 placeholder 提示
                     placeholder_txt = ""
                     if "房屋單價" in found_key or "公設比" in found_key:
                         placeholder_txt = "輸入數字0系統匯出自動計算"
-                    elif "不含車位坪數" in found_key:
+                    elif "登記總建坪" in found_key or "不含車位坪數" in found_key:
                         placeholder_txt = "輸入數字0系統匯出自動計算"
                     
                     val = st.text_input(found_key, key=coord, placeholder=placeholder_txt)
@@ -545,7 +552,6 @@ def main():
                 
                 if found_key in scanned_dict: del scanned_dict[found_key]
 
-        # 渲染其他順序欄位
         if any(k in scanned_dict for k in OTHER_ORDER):
             st.markdown("<hr style='border-color: rgba(255,255,255,0.05); margin: 30px 0;'>", unsafe_allow_html=True)
             for label in OTHER_ORDER:
@@ -560,11 +566,10 @@ def main():
                         val = st.text_area(label, key=coord, height=100)
                         user_inputs[coord] = val
                     else:
-                        # 加入 placeholder 提示
                         placeholder_txt = ""
                         if "房屋單價" in label or "公設比" in label:
                             placeholder_txt = "輸入數字0系統匯出自動計算"
-                        elif "不含車位坪數" in label:
+                        elif "登記總建坪" in label or "不含車位坪數" in label:
                             placeholder_txt = "輸入數字0系統匯出自動計算"
                         
                         val = st.text_input(label, key=coord, placeholder=placeholder_txt)
@@ -572,7 +577,6 @@ def main():
                     
                     del scanned_dict[label]
 
-        # 渲染剩餘欄位
         if scanned_dict:
             st.markdown("<hr style='border-color: rgba(255,255,255,0.05); margin: 30px 0;'>", unsafe_allow_html=True)
             for label, item in scanned_dict.items():
@@ -584,11 +588,10 @@ def main():
                     val = st.text_area(label, key=coord, height=100)
                     user_inputs[coord] = val
                 else:
-                    # 加入 placeholder 提示
                     placeholder_txt = ""
                     if "房屋單價" in label or "公設比" in label:
                         placeholder_txt = "輸入數字0系統匯出自動計算"
-                    elif "不含車位坪數" in label:
+                    elif "登記總建坪" in label or "不含車位坪數" in label:
                         placeholder_txt = "輸入數字0系統匯出自動計算"
 
                     val = st.text_input(label, key=coord, placeholder=placeholder_txt)
@@ -603,11 +606,8 @@ def main():
 
         coord_to_header = {item["coordinate"]: item["label"] for item in scanned_items}
         
-        # 標記需要插入圖片的欄位座標
         image_coords = [item["coordinate"] for item in scanned_items if item["type"] == "image_upload"]
 
-        # --- 預先處理自動計算 ---
-        # 取得相關欄位的座標
         coord_price = next((k for k, v in coord_to_header.items() if "售價" in v), None)
         coord_total_area = next((k for k, v in coord_to_header.items() if "登記總建坪" in v), None)
         coord_area_no_parking = next((k for k, v in coord_to_header.items() if "不含車位" in v), None)
@@ -615,11 +615,10 @@ def main():
         coord_public_area = next((k for k, v in coord_to_header.items() if "公設坪數" in v), None)
         coord_unit_price = next((k for k, v in coord_to_header.items() if "房屋單價" in v), None)
         coord_public_ratio = next((k for k, v in coord_to_header.items() if "公設比" in v), None)
-        # 尋找新需要的欄位：主建物、附屬建物
         coord_main_area = next((k for k, v in coord_to_header.items() if "主建物" in v), None)
         coord_annex_area = next((k for k, v in coord_to_header.items() if "附屬" in v), None)
 
-        # 1. 計算不含車位坪數: 主建物 + 附屬 + 公設 (獨立計算)
+        # 1. 計算不含車位坪數 (主+附+公)
         if coord_area_no_parking and user_inputs.get(coord_area_no_parking) == "0":
             try:
                 a_main = safe_float_convert(user_inputs.get(coord_main_area))
@@ -628,19 +627,27 @@ def main():
                 user_inputs[coord_area_no_parking] = str(round(a_main + a_annex + a_pub, 3))
             except: pass
 
-        # 2. 計算登記總建坪: 已移除，現在只會保留使用者輸入的原始數值。
-        
-        # 3. 計算房屋單價: 售價 / 不含車位坪數
+        # 2. 計算登記總建坪 (主+附+公+車)
+        if coord_total_area and user_inputs.get(coord_total_area) == "0":
+            try:
+                a_main = safe_float_convert(user_inputs.get(coord_main_area))
+                a_annex = safe_float_convert(user_inputs.get(coord_annex_area))
+                a_pub = safe_float_convert(user_inputs.get(coord_public_area))
+                a_park = safe_float_convert(user_inputs.get(coord_parking_area))
+                user_inputs[coord_total_area] = str(round(a_main + a_annex + a_pub + a_park, 3))
+            except: pass
+
+        # 3. 計算房屋單價
         if coord_unit_price and user_inputs.get(coord_unit_price) == "0":
             try:
                 p = safe_float_convert(user_inputs.get(coord_price))
                 a = safe_float_convert(user_inputs.get(coord_area_no_parking))
                 if a > 0:
                     res = round(p / a, 2)
-                    user_inputs[coord_unit_price] = str(res) # 後續會被加上"萬"
+                    user_inputs[coord_unit_price] = str(res)
             except: pass
 
-        # 4. 計算公設比: (公設坪數 / 不含車位坪數) * 100%
+        # 4. 計算公設比
         if coord_public_ratio and user_inputs.get(coord_public_ratio) == "0":
             try:
                 pub = safe_float_convert(user_inputs.get(coord_public_area))
@@ -651,7 +658,6 @@ def main():
             except: pass
 
         for coord, value in user_inputs.items():
-            # 圖片欄位跳過文字寫入
             if coord in image_coords:
                 continue
 
@@ -664,7 +670,7 @@ def main():
             elif "格局" in header:
                 final_val = format_layout(final_val)
             
-            # 自動加萬 (含售價、貸款)
+            # 自動加萬
             keywords_for_wan = ["售價", "單價", "價格", "貸款"]
             if any(k in header for k in keywords_for_wan) and final_val:
                 v_str = str(final_val).strip()
@@ -688,22 +694,17 @@ def main():
                         break
                 
                 if target_map_coord:
-                    # 清空儲存格文字
                     ws_output[target_map_coord].value = ""
 
-                    # 1. 使用 PIL 開啟並置中剪裁 (27:16)
                     pil_img = Image.open(uploaded_map_image)
-                    pil_img = ImageOps.exif_transpose(pil_img) # 處理手機拍照轉向問題
+                    pil_img = ImageOps.exif_transpose(pil_img)
                     cropped_img = crop_image_to_ratio(pil_img, 27, 16)
                     
-                    # 2. 轉回 BytesIO 供 OpenPyXL 使用
                     img_byte_arr = io.BytesIO()
                     cropped_img.save(img_byte_arr, format='PNG')
                     img_byte_arr.seek(0)
                     
                     img = ExcelImage(img_byte_arr)
-                    
-                    # 3. 自動計算儲存格像素大小並填滿 (拉伸)
                     calc_w, calc_h = calculate_cell_pixels(ws_output, target_map_coord)
                     img.width = calc_w
                     img.height = calc_h
