@@ -33,7 +33,7 @@ OTHER_ORDER = [
     "房地合一", "面道路", "貸款設定", "車位價格", "房屋單價"
 ]
 
-# --- 2. 視覺設計 (修正版：強力隱藏介面雜訊) ---
+# --- 2. 視覺設計 (修正版：核彈級隱藏介面雜訊) ---
 def inject_custom_styles():
     st.markdown("""
         <style>
@@ -46,35 +46,43 @@ def inject_custom_styles():
 
             /* --- 強力隱藏 Streamlit 預設介面 --- */
             
-            /* 1. 隱藏上方 Header */
-            header[data-testid="stHeader"] {
+            /* 1. 徹底隱藏上方 Header (包含漢堡選單、Deploy 按鈕、裝飾條) */
+            header, [data-testid="stHeader"], .stAppHeader {
+                display: none !important;
+                visibility: hidden !important;
+                height: 0px !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+            }
+
+            /* 2. 徹底隱藏下方 Footer (Hosted with Streamlit) */
+            footer, [data-testid="stFooter"] {
+                display: none !important;
+                visibility: hidden !important;
+                height: 0px !important;
+            }
+
+            /* 3. 隱藏選單按鈕與開發者工具 */
+            #MainMenu {
                 display: none !important;
                 visibility: hidden !important;
             }
-            .stApp > header {
-                display: none !important;
-            }
-
-            /* 2. 隱藏下方 Footer */
-            footer {
-                display: none !important;
-                visibility: hidden !important;
-            }
-            [data-testid="stFooter"] {
-                display: none !important;
-            }
-
-            /* 3. 隱藏開發者按鈕 */
             [data-testid="stToolbar"] {
+                display: none !important;
+                visibility: hidden !important;
+            }
+            [data-testid="stDecoration"] {
+                display: none !important;
+            }
+            [data-testid="stStatusWidget"] {
                 display: none !important;
             }
             .stDeployButton {
                 display: none !important;
             }
-            div[data-testid="stDecoration"] {
-                display: none !important;
-            }
-            [data-testid="stStatusWidget"] {
+            
+            /* 隱藏右下角可能出現的 Manage app 按鈕區域 */
+            div[class*="viewerBadge"] {
                 display: none !important;
             }
 
@@ -86,7 +94,18 @@ def inject_custom_styles():
                 background-size: cover;
                 font-family: 'Inter', 'Noto Sans TC', sans-serif;
                 color: #d1d5db;
-                margin-top: -60px; /* 移除上方預設留白 */
+                /* 因為 header 已經 display:none，不需要負 margin */
+                margin-top: 0px !important;
+            }
+
+            /* 修正主要內容區域的 padding，去除上方留白 */
+            .block-container { 
+                padding-top: 2rem !important; /* 確保內容不會貼齊頂部太緊，保留適當呼吸空間 */
+                padding-left: 1rem;
+                padding-right: 1rem;
+                padding-bottom: 5rem;
+                max-width: 600px; 
+                margin: 0 auto;
             }
 
             /* --- 表單區塊樣式 --- */
@@ -96,7 +115,7 @@ def inject_custom_styles():
                 border-radius: 16px; 
                 padding: 20px 24px;
                 backdrop-filter: blur(12px);
-                margin-top: 30px;
+                margin-top: 10px; /* 稍微縮小頂部間距 */
                 width: 100%;
                 box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
             }
@@ -182,7 +201,7 @@ def inject_custom_styles():
                 justify-content: center;
                 align-items: center;
                 text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-                padding-top: 20px;
+                padding-top: 0px;
             }
             .subtitle {
                 text-align: center !important;
@@ -226,14 +245,6 @@ def inject_custom_styles():
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
-            }
-
-            .block-container { 
-                padding-top: 1rem;
-                padding-left: 1rem;
-                padding-right: 1rem;
-                max-width: 600px; 
-                margin: 0 auto;
             }
             
             ::-webkit-scrollbar { display: none; }
