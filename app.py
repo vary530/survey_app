@@ -9,10 +9,10 @@ import pdfplumber
 import streamlit.components.v1 as components
 from PIL import Image, ImageOps # 新增影像處理套件
 
-# --- 1. 頁面設定 ---
+# --- 1. 頁面設定 (修改APP名稱與圖示請改這裡) ---
 st.set_page_config(
-    page_title="永義物調整合", 
-    page_icon="🏠", 
+    page_title="studio",  # <-- 這裡改網頁標籤上的名字
+    page_icon="my_logo.png",           # <-- 這裡改網頁標籤上的小圖示 (可以用emoji或圖片路徑)
     layout="centered",
     initial_sidebar_state="collapsed"
 )
@@ -46,47 +46,30 @@ def inject_custom_styles():
 
             /* --- 強力隱藏 Streamlit 預設介面 --- */
             
-            /* 1. 徹底隱藏上方 Header (包含漢堡選單、Deploy 按鈕、裝飾條) */
-            header, [data-testid="stHeader"], .stAppHeader {
+            /* 1. 隱藏上方 Header (白條) */
+            header, .stApp > header {
                 display: none !important;
                 visibility: hidden !important;
                 height: 0px !important;
-                opacity: 0 !important;
-                pointer-events: none !important;
+                background-color: transparent !important;
             }
 
-            /* 2. 徹底隱藏下方 Footer (Hosted with Streamlit) */
-            footer, [data-testid="stFooter"] {
+            /* 2. 隱藏下方 Footer */
+            footer, .stFooter {
                 display: none !important;
                 visibility: hidden !important;
                 height: 0px !important;
             }
 
-            /* 3. 隱藏選單按鈕與開發者工具 */
-            #MainMenu {
-                display: none !important;
-                visibility: hidden !important;
-            }
-            [data-testid="stToolbar"] {
-                display: none !important;
-                visibility: hidden !important;
-            }
-            [data-testid="stDecoration"] {
-                display: none !important;
-            }
-            [data-testid="stStatusWidget"] {
-                display: none !important;
-            }
-            .stDeployButton {
-                display: none !important;
-            }
-            
-            /* 隱藏右下角可能出現的 Manage app 按鈕區域 */
-            div[class*="viewerBadge"] {
-                display: none !important;
-            }
+            /* 3. 隱藏所有選單與裝飾 */
+            #MainMenu {visibility: hidden;}
+            [data-testid="stToolbar"] {visibility: hidden; display: none !important;}
+            [data-testid="stDecoration"] {visibility: hidden; display: none !important;}
+            [data-testid="stStatusWidget"] {visibility: hidden; display: none !important;}
+            .stDeployButton {display: none !important;}
+            div[class*="viewerBadge"] {display: none !important;}
 
-            /* 全域背景設定 */
+            /* 全域背景設定 (強制覆蓋) */
             .stApp {
                 background-color: #050505;
                 background-image: radial-gradient(circle at 50% 0%, #1a1a1a 0%, #050505 80%);
@@ -94,13 +77,12 @@ def inject_custom_styles():
                 background-size: cover;
                 font-family: 'Inter', 'Noto Sans TC', sans-serif;
                 color: #d1d5db;
-                /* 因為 header 已經 display:none，不需要負 margin */
                 margin-top: 0px !important;
             }
 
-            /* 修正主要內容區域的 padding，去除上方留白 */
+            /* 修正主要內容區域，避免上方留白 */
             .block-container { 
-                padding-top: 2rem !important; /* 確保內容不會貼齊頂部太緊，保留適當呼吸空間 */
+                padding-top: 1rem !important;
                 padding-left: 1rem;
                 padding-right: 1rem;
                 padding-bottom: 5rem;
@@ -115,7 +97,7 @@ def inject_custom_styles():
                 border-radius: 16px; 
                 padding: 20px 24px;
                 backdrop-filter: blur(12px);
-                margin-top: 10px; /* 稍微縮小頂部間距 */
+                margin-top: 10px;
                 width: 100%;
                 box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
             }
@@ -555,7 +537,7 @@ def main():
                     placeholder_txt = ""
                     if "房屋單價" in found_key or "公設比" in found_key:
                         placeholder_txt = "輸入數字0系統匯出自動計算"
-                    elif "登記總建坪" in found_key or "不含車位坪數" in found_key:
+                    elif "不含車位坪數" in found_key:
                         placeholder_txt = "輸入數字0系統匯出自動計算"
                     
                     val = st.text_input(found_key, key=coord, placeholder=placeholder_txt)
@@ -580,7 +562,7 @@ def main():
                         placeholder_txt = ""
                         if "房屋單價" in label or "公設比" in label:
                             placeholder_txt = "輸入數字0系統匯出自動計算"
-                        elif "登記總建坪" in label or "不含車位坪數" in label:
+                        elif "不含車位坪數" in label:
                             placeholder_txt = "輸入數字0系統匯出自動計算"
                         
                         val = st.text_input(label, key=coord, placeholder=placeholder_txt)
@@ -602,7 +584,7 @@ def main():
                     placeholder_txt = ""
                     if "房屋單價" in label or "公設比" in label:
                         placeholder_txt = "輸入數字0系統匯出自動計算"
-                    elif "登記總建坪" in label or "不含車位坪數" in label:
+                    elif "不含車位坪數" in label:
                         placeholder_txt = "輸入數字0系統匯出自動計算"
 
                     val = st.text_input(label, key=coord, placeholder=placeholder_txt)
@@ -638,16 +620,8 @@ def main():
                 user_inputs[coord_area_no_parking] = str(round(a_main + a_annex + a_pub, 3))
             except: pass
 
-        # 2. 計算登記總建坪 (主+附+公+車)
-        if coord_total_area and user_inputs.get(coord_total_area) == "0":
-            try:
-                a_main = safe_float_convert(user_inputs.get(coord_main_area))
-                a_annex = safe_float_convert(user_inputs.get(coord_annex_area))
-                a_pub = safe_float_convert(user_inputs.get(coord_public_area))
-                a_park = safe_float_convert(user_inputs.get(coord_parking_area))
-                user_inputs[coord_total_area] = str(round(a_main + a_annex + a_pub + a_park, 3))
-            except: pass
-
+        # 2. 計算登記總建坪: 已移除自動計算 (保留使用者手動輸入)
+        
         # 3. 計算房屋單價
         if coord_unit_price and user_inputs.get(coord_unit_price) == "0":
             try:
